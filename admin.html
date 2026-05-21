@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html class="scroll-smooth bg-surface" lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>ITGxP - Admin Portal</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <!-- Tailwind Config -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-container": "#1a7f8e",
+                        "surface": "#f4fafb",
+                        "surface-white": "#FFFFFF",
+                        "outline-variant": "#bec8cb",
+                        "on-surface": "#161d1e",
+                        "on-surface-variant": "#3e484b"
+                    },
+                    fontFamily: {
+                        "body-md": ["Plus Jakarta Sans"],
+                        "headline-md": ["Fraunces"],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-body-md text-on-surface antialiased p-8">
+    <!-- Login Section -->
+    <div id="login-section" class="max-w-md mx-auto mt-24 bg-surface-white p-8 rounded shadow-sm border border-outline-variant">
+        <h2 class="font-headline-md text-2xl text-primary-container mb-6 text-center">Admin Login</h2>
+        <form id="login-form" class="space-y-4">
+            <div>
+                <label for="email" class="block text-sm font-semibold text-on-surface-variant mb-1">Email Address</label>
+                <input type="email" id="email" required class="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary-container bg-surface-white text-on-surface" placeholder="Enter your email">
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-semibold text-on-surface-variant mb-1">Password</label>
+                <input type="password" id="password" required class="w-full px-3 py-2 border border-outline-variant rounded focus:outline-none focus:ring-2 focus:ring-primary-container bg-surface-white text-on-surface" placeholder="••••••••">
+            </div>
+            <button type="submit" id="login-btn" class="w-full bg-primary-container text-surface-white font-semibold py-3 rounded hover:bg-opacity-90 transition-colors shadow-sm">
+                Sign In
+            </button>
+        </form>
+        <p id="login-error" class="text-red-600 text-sm hidden mt-4 text-center"></p>
+    </div>
+
+    <!-- Dashboard Section (Hidden by Default) -->
+    <div id="dashboard-section" class="max-w-6xl mx-auto hidden">
+        <header class="flex justify-between items-center mb-8 border-b border-outline-variant pb-4">
+            <h1 class="font-headline-md text-3xl text-primary-container">Contact Submissions</h1>
+            <div class="flex gap-4 items-center">
+                <button id="export-btn" class="bg-primary-container text-surface-white font-semibold px-4 py-2 rounded hover:bg-primary transition-colors text-sm">Export CSV</button>
+                <button id="logout-btn" class="bg-red-500 text-white font-semibold px-4 py-2 rounded hover:bg-red-600 transition-colors text-sm">Log Out</button>
+                <a href="code.html" class="text-on-surface-variant hover:text-primary-container underline text-sm">Back to Website</a>
+            </div>
+        </header>
+
+        <div class="bg-surface-white rounded shadow-sm border border-outline-variant overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-surface border-b border-outline-variant">
+                        <th class="p-4 font-semibold text-on-surface-variant">Date</th>
+                        <th class="p-4 font-semibold text-on-surface-variant">Name</th>
+                        <th class="p-4 font-semibold text-on-surface-variant">Email</th>
+                        <th class="p-4 font-semibold text-on-surface-variant">Company</th>
+                        <th class="p-4 font-semibold text-on-surface-variant">Message</th>
+                        <th class="p-4 font-semibold text-on-surface-variant">Status</th>
+                        <th class="p-4 font-semibold text-on-surface-variant text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="contacts-table-body">
+                    <tr>
+                        <td colspan="7" class="p-8 text-center text-on-surface-variant">
+                            Loading submissions...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, query, orderBy, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, inMemoryPersistence } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-IpwWmfsgzAgMSIZ3-AOtugCfu_7V8aE",
+            authDomain: "itgxp-f46e9.firebaseapp.com",
+            projectId: "itgxp-f46e9",
+            storageBucket: "itgxp-f46e9.firebasestorage.app",
+            messagingSenderId: "1079926269714",
+            appId: "1:1079926269714:web:a43133d06461afdae135cb",
+            measurementId: "G-KMCKFHVR6C"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Configure auth state to be in-memory only (logs out on reload)
+        setPersistence(auth, inMemoryPersistence).catch((error) => {
+            console.error("Error setting auth persistence:", error);
+        });
+
+        const loginSection = document.getElementById('login-section');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const loginForm = document.getElementById('login-form');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('login-btn');
+        const loginError = document.getElementById('login-error');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        // Handle Auth State
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in
+                loginSection.classList.add('hidden');
+                dashboardSection.classList.remove('hidden');
+                fetchContacts(); // Fetch data only after login
+            } else {
+                // User is signed out
+                loginSection.classList.remove('hidden');
+                dashboardSection.classList.add('hidden');
+                document.getElementById('contacts-table-body').innerHTML = ''; // Clear sensitive data
+            }
+        });
+
+        // Handle Email/Password Login
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+
+            const originalHTML = loginBtn.innerHTML;
+            loginBtn.innerText = 'Signing in...';
+            loginBtn.disabled = true;
+            loginError.classList.add('hidden');
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                // Clear input values for security
+                emailInput.value = '';
+                passwordInput.value = '';
+            } catch (error) {
+                console.error("Login failed:", error);
+                loginError.innerText = "Invalid email or password. Please try again.";
+                loginError.classList.remove('hidden');
+            } finally {
+                loginBtn.innerHTML = originalHTML;
+                loginBtn.disabled = false;
+            }
+        });
+
+        // Handle Logout
+        logoutBtn.addEventListener('click', async () => {
+            logoutBtn.innerText = 'Logging out...';
+            logoutBtn.disabled = true;
+            try {
+                await signOut(auth);
+                // Force reload to clear any cached state
+                window.location.reload();
+            } catch (error) {
+                console.error("Logout failed:", error);
+                alert('Logout failed: ' + error.message);
+                logoutBtn.innerText = 'Log Out';
+                logoutBtn.disabled = false;
+            }
+        });
+
+        let allContactsData = []; // Store for CSV export
+
+        async function fetchContacts() {
+            const tbody = document.getElementById('contacts-table-body');
+            try {
+                // Fetch contacts ordered by timestamp descending
+                const q = query(collection(db, "contactResponses"), orderBy("createdAt", "desc"));
+                const querySnapshot = await getDocs(q);
+                
+                tbody.innerHTML = ''; // Clear loading state
+                allContactsData = []; // Clear array
+                
+                if (querySnapshot.empty) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-on-surface-variant">No submissions found.</td></tr>';
+                    return;
+                }
+
+                querySnapshot.forEach((documentSnapshot) => {
+                    const data = documentSnapshot.data();
+                    const docId = documentSnapshot.id;
+                    const date = data.createdAt ? data.createdAt.toDate().toLocaleString() : 'N/A';
+                    
+                    // Add to global store
+                    allContactsData.push({
+                        date: date,
+                        name: data.name || '',
+                        email: data.email || '',
+                        company: data.company || '',
+                        message: data.message || '',
+                        responded: data.responded ? 'Yes' : 'No'
+                    });
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-outline-variant hover:bg-surface transition-colors';
+                    
+                    const isResponded = data.responded === true;
+                    
+                    tr.innerHTML = `
+                        <td class="p-4 whitespace-nowrap text-sm text-on-surface-variant">${date}</td>
+                        <td class="p-4 font-medium text-on-surface">${data.name || ''}</td>
+                        <td class="p-4 text-on-surface-variant">${data.email || ''}</td>
+                        <td class="p-4 text-on-surface-variant">${data.company || ''}</td>
+                        <td class="p-4 text-on-surface-variant max-w-xs truncate" title="${data.message || ''}">${data.message || ''}</td>
+                        <td class="p-4">
+                            <label class="flex items-center cursor-pointer">
+                                <input type="checkbox" class="status-toggle form-checkbox h-5 w-5 text-primary-container rounded border-outline" ${isResponded ? 'checked' : ''}>
+                                <span class="ml-2 text-sm text-on-surface-variant status-label">${isResponded ? 'Responded' : 'Pending'}</span>
+                            </label>
+                        </td>
+                        <td class="p-4 text-right">
+                            <button class="delete-btn text-red-500 hover:text-red-700 transition-colors p-2 rounded hover:bg-red-50" title="Delete Submission">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </td>
+                    `;
+                    
+                    // Add event listener to the checkbox
+                    const checkbox = tr.querySelector('.status-toggle');
+                    const label = tr.querySelector('.status-label');
+                    checkbox.addEventListener('change', async (e) => {
+                        const newStatus = e.target.checked;
+                        label.innerText = newStatus ? 'Responded' : 'Pending';
+                        try {
+                            await updateDoc(doc(db, "contactResponses", docId), {
+                                responded: newStatus
+                            });
+                            // Update local store for CSV
+                            const contactIndex = allContactsData.findIndex(c => c.date === date && c.email === data.email);
+                            if (contactIndex > -1) {
+                                allContactsData[contactIndex].responded = newStatus ? 'Yes' : 'No';
+                            }
+                        } catch (err) {
+                            console.error("Error updating status:", err);
+                            alert("Failed to update status. Make sure your Firestore rules allow 'update'.");
+                            // Revert UI
+                            e.target.checked = !newStatus;
+                            label.innerText = !newStatus ? 'Responded' : 'Pending';
+                        }
+                    });
+
+                    // Add event listener to delete button
+                    const deleteBtn = tr.querySelector('.delete-btn');
+                    deleteBtn.addEventListener('click', async () => {
+                        if (confirm('Are you sure you want to permanently delete this submission?')) {
+                            const originalHTML = deleteBtn.innerHTML;
+                            deleteBtn.innerHTML = '<span class="text-sm">...</span>';
+                            deleteBtn.disabled = true;
+                            
+                            try {
+                                await deleteDoc(doc(db, "contactResponses", docId));
+                                // Remove from UI
+                                tr.remove();
+                                // Remove from local array
+                                const contactIndex = allContactsData.findIndex(c => c.date === date && c.email === data.email);
+                                if (contactIndex > -1) {
+                                    allContactsData.splice(contactIndex, 1);
+                                }
+                            } catch (err) {
+                                console.error("Error deleting document:", err);
+                                alert("Failed to delete. Make sure your Firestore rules allow 'delete'.");
+                                deleteBtn.innerHTML = originalHTML;
+                                deleteBtn.disabled = false;
+                            }
+                        }
+                    });
+
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error("Error fetching contacts:", error);
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-600">Error loading submissions. Please check your Firebase configuration and permissions.</td></tr>`;
+            }
+        }
+
+        // CSV Export Logic
+        document.getElementById('export-btn').addEventListener('click', () => {
+            if (allContactsData.length === 0) {
+                alert("No data to export.");
+                return;
+            }
+            
+            const headers = ['Date', 'Name', 'Email', 'Company', 'Message', 'Responded'];
+            const rows = allContactsData.map(contact => [
+                `"${contact.date}"`,
+                `"${contact.name.replace(/"/g, '""')}"`,
+                `"${contact.email.replace(/"/g, '""')}"`,
+                `"${contact.company.replace(/"/g, '""')}"`,
+                `"${contact.message.replace(/"/g, '""')}"`,
+                `"${contact.responded}"`
+            ].join(','));
+            
+            const csvContent = headers.join(',') + '\\n' + rows.join('\\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", "itgxp_leads.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Removed fetchContacts() direct call; it is now called via onAuthStateChanged
+    </script>
+</body>
+</html>
