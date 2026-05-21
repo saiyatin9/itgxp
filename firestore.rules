@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Contact form submissions
+    match /contactResponses/{responseId} {
+
+      // Anyone can create a form response
+      allow create: if
+        request.resource.data.name is string &&
+        request.resource.data.email is string &&
+        request.resource.data.message is string &&
+        request.resource.data.name.size() > 2 &&
+        request.resource.data.name.size() <= 50 &&
+        request.resource.data.message.size() <= 1000 &&
+        request.resource.data.responded == false &&
+        request.resource.data.createdAt != null;
+
+      // Only authenticated admin can read
+      allow read: if request.auth != null;
+
+      // Only authenticated admin can update/delete
+      allow update, delete: if request.auth != null;
+    }
+
+    // Admin settings collection
+    match /admin/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
